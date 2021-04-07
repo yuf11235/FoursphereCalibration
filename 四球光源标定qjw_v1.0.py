@@ -240,7 +240,7 @@ np.save("./light_world.npy",Light_world)
 
 #=======将标定好的空间坐标显示在3D图中
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
-ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=5000, c='r')
+ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=100, c='r')
 ax.scatter(Light_world[:,0],Light_world[:,1],Light_world[:,2], s=100, c='y')
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
