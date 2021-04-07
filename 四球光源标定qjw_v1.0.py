@@ -28,6 +28,7 @@ camera_world = np.array([-Point0_world[0,0],
                          Point0_world[2,0]])
 #print(camera_world)
 
+# 读取四个标定球的轮廓像素坐标，并将其转换为三维坐标
 outline_world3d =[] #轮廓世界坐标
 outline_world2d1 = []
 for B_num in range(Ball_num):
@@ -36,10 +37,14 @@ for B_num in range(Ball_num):
     outline_world2d1.append(outline_px)
     point_num = len(outline_px)
     #print(point_num)
+    # 这一步相当重要，暂时感觉问题不是很大
     outline_world2d = PTW.pxtoworld(cameraParams,outline_px)
+    # 默认所有轮廓点都是在同一平面（Z=0）这个平面上的，这就很有问题了，因为相机相对球是有角度的，严格来说轮廓圆不可能平行于Z=0平面
+    # 。。。好像也没有什么问题，反正都是求取单位向量进行计算，将Z都设为0好像没啥子问题
     Z_outline = np.zeros((point_num,1))
     outline_world3d.append(np.hstack((outline_world2d,Z_outline)))
 
+# 读取32个光源光源在四个标定球上形成的高光点
 highlight = np.load("./up8/highlightpx/Coord_highlight.npz")
 highlight1 = np.load("./down24/highlightpx/Coord_highlight.npz")
 PointP_world2d1 = []
@@ -78,13 +83,14 @@ sinBeta = np.zeros(Ball_num)
 PointS_world = np.zeros((Ball_num,3)) #球心世界坐标
 PointS_world1 = np.zeros((Ball_num,3))
 for B_num in range(Ball_num):
-    # 公式(4)中cosBeta的平均值
+    # 见公式(5)
     outline_vec_mean = np.mean(outline_vec[B_num],0)
     # 见公式（6）中对矩阵A的定义
     A_matrix = outline_vec[B_num] - outline_vec_mean
-    
+    # SVD分解
     U,S,Vh = svd(A_matrix)
     #print(Vh,"\n",S)
+    # 求取光心O指向球心S的向量Vos
     Vos[B_num,:] = Vh[2,:]
     '''
     #同SVD方法结果差不多，D为奇异值，V为向量
@@ -93,10 +99,12 @@ for B_num in range(Ball_num):
     k = np.argmin(D)#找到最小的奇异值
     Vos1[B_num,:] = V[:,k].T#取列向量为
     '''
-    cosBeta1 = np.dot(outline_vec[B_num], Vos[B_num,:])
-    cosBeta1 = np.min(cosBeta1)
+    # 下面几句可以注释掉，没啥用
+    # cosBeta1 = np.dot(outline_vec[B_num], Vos[B_num,:])
+    # cosBeta1 = np.min(cosBeta1)
     #print(cosBeta1)
-    
+
+    # 根据公式（4）求取余弦值
     cosBeta[B_num] = np.dot(outline_vec_mean, Vos[B_num,:])
     #print(cosBeta[B_num])
     if cosBeta[B_num] < 0: #cosBeta应该为正值，Beta理论上是小于90度的
