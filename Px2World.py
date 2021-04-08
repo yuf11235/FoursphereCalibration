@@ -37,11 +37,11 @@ def pxtoworld(cameraParams,*CoordInPx):
     H_33 = H[2,2]
     k = len(CoordInPx[0])
     '''
-利用矩阵思想加快进程：
-[xw]    [u*h31-h11   u*h32-h12]-1       [h13-u*h33]
-     =                             *    
-[yw]    [v*h31-h21   v*h32-h22]         [h23-v*h33]
-扩展开：
+    利用矩阵思想加快进程：
+    [xw]    [u*h31-h11   u*h32-h12]-1       [h13-u*h33]
+         =                             *    
+    [yw]    [v*h31-h21   v*h32-h22]         [h23-v*h33]
+    扩展开：
 
     '''
     U0 = u*H_31-H_11

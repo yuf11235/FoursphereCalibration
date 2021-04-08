@@ -12,86 +12,89 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import math
 import scipy.optimize
-from numpy.linalg import norm, svd, pinv,eig
+from numpy.linalg import norm, svd, pinv, eig
 import Px2World as PTW
 
 up_light = 8
 down_light = 24
-Light_num = 32 #光源数量
-Ball_num = 4 #参考球个数
-r = 5 #实际半径，单位：mm
+Light_num = 32  # 光源数量
+Ball_num = 4  # 参考球个数
+r = 5  # 实际半径，单位：mm
 
 cameraParams = np.load("./cameraParams.npz")
 Point0_world = cameraParams["T"]
-camera_world = np.array([-Point0_world[0,0],
-                         -Point0_world[1,0],
-                         Point0_world[2,0]])
-#print(camera_world)
+camera_world = np.array([-Point0_world[0, 0],
+                         -Point0_world[1, 0],
+                         Point0_world[2, 0]])
+# print(camera_world)
 
 # 读取四个标定球的轮廓像素坐标，并将其转换为三维坐标
-outline_world3d =[] #轮廓世界坐标
+outline_world3d = []  # 轮廓世界坐标
 outline_world2d1 = []
 for B_num in range(Ball_num):
+    # circle_outline.npz是通过get_outline2.py计算得到的
     Ball_data = np.load("./circle_outline.npz", allow_pickle=True)
     outline_px = Ball_data["px"][B_num]
     outline_world2d1.append(outline_px)
     point_num = len(outline_px)
-    #print(point_num)
+    # print(point_num)
     # 这一步相当重要，暂时感觉问题不是很大
-    outline_world2d = PTW.pxtoworld(cameraParams,outline_px)
+    outline_world2d = PTW.pxtoworld(cameraParams, outline_px)
     # 默认所有轮廓点都是在同一平面（Z=0）这个平面上的，这就很有问题了，因为相机相对球是有角度的，严格来说轮廓圆不可能平行于Z=0平面
-    # 。。。好像也没有什么问题，反正都是求取单位向量进行计算，将Z都设为0好像没啥子问题
-    Z_outline = np.zeros((point_num,1))
-    outline_world3d.append(np.hstack((outline_world2d,Z_outline)))
+    # 。。。好像也没有什么问题，反正都是求取单位向量进行计算，将Z都设为0好像没啥子问题————都是在相平面上
+    Z_outline = np.zeros((point_num, 1))  # 可以直接设相平面Z=0吗？？
+    outline_world3d.append(np.hstack((outline_world2d, Z_outline)))
 
-# 读取32个光源光源在四个标定球上形成的高光点
+# 读取32个光源光源在四个标定球上形成的高光点P
+# 读取上面的8个光源形成的高光点
 highlight = np.load("./up8/highlightpx/Coord_highlight.npz")
+# 读取下面24个光源形成的高光点
 highlight1 = np.load("./down24/highlightpx/Coord_highlight.npz")
+# 难道二维到三维就是将z都设为0，然后添加到二维坐标上面？？
 PointP_world2d1 = []
-PointP_world3d = [] #存储高光点世界坐标
+PointP_world3d = []  # 存储高光点世界坐标
 for L_num in range(up_light):
-    PointP_px = highlight["Coord_highlight"][:,:,L_num]
+    PointP_px = highlight["Coord_highlight"][:, :, L_num]
     PointP_world2d1.append(PointP_px)
-    PointP_world2d = PTW.pxtoworld(cameraParams,PointP_px)
-    Z_pointP = np.zeros((len(PointP_world2d),1))
-    PointP_world3d.append(np.hstack((PointP_world2d,Z_pointP)))#列表形式存储3d数据
-#print(PointP_world3d)
+    PointP_world2d = PTW.pxtoworld(cameraParams, PointP_px)
+    Z_pointP = np.zeros((len(PointP_world2d), 1))
+    PointP_world3d.append(np.hstack((PointP_world2d, Z_pointP)))  # 列表形式存储3d数据
+# print(PointP_world3d)
 for L_num in range(down_light):
-    PointP_px = highlight1["Coord_highlight"][:,:,L_num]
+    PointP_px = highlight1["Coord_highlight"][:, :, L_num]
     PointP_world2d1.append(PointP_px)
-    PointP_world2d = PTW.pxtoworld(cameraParams,PointP_px)
-    Z_pointP = np.zeros((len(PointP_world2d),1))
-    PointP_world3d.append(np.hstack((PointP_world2d,Z_pointP)))
+    PointP_world2d = PTW.pxtoworld(cameraParams, PointP_px)
+    Z_pointP = np.zeros((len(PointP_world2d), 1))
+    PointP_world3d.append(np.hstack((PointP_world2d, Z_pointP)))
 
 # 计算OQ向量——世界坐标系原点指向标定球轮廓点的单位向量，见公式（1）
-outline_vec = [] 
+outline_vec = []
 for B_num in range(Ball_num):
     point_num = len(outline_world3d[B_num])
-    outline_vec1 = np.zeros((point_num,3))
+    outline_vec1 = np.zeros((point_num, 3))
     for p_num in range(point_num):
         # OQ向量
-        outline_vec1[p_num,:] = outline_world3d[B_num][p_num,:] - camera_world
+        outline_vec1[p_num, :] = outline_world3d[B_num][p_num, :] - camera_world
         # OQ向量单位化
-        outline_vec1[p_num,:] = outline_vec1[p_num,:]/norm(
-            outline_vec1[p_num,:])#单位化
+        outline_vec1[p_num, :] = outline_vec1[p_num, :] / norm(outline_vec1[p_num, :])  # 单位化
     outline_vec.append(outline_vec1)
 
 # 求解OS向量——世界坐标系原点指向标定球球心的单位向量，见公式（1）
-Vos = np.zeros((Ball_num,3)) #Vos向量
+Vos = np.zeros((Ball_num, 3))  # Vos向量
 cosBeta = np.zeros(Ball_num)
 sinBeta = np.zeros(Ball_num)
-PointS_world = np.zeros((Ball_num,3)) #球心世界坐标
-PointS_world1 = np.zeros((Ball_num,3))
+PointS_world = np.zeros((Ball_num, 3))  # 球心世界坐标
+PointS_world1 = np.zeros((Ball_num, 3))
 for B_num in range(Ball_num):
     # 见公式(5)
-    outline_vec_mean = np.mean(outline_vec[B_num],0)
+    outline_vec_mean = np.mean(outline_vec[B_num], 0)
     # 见公式（6）中对矩阵A的定义
     A_matrix = outline_vec[B_num] - outline_vec_mean
     # SVD分解
-    U,S,Vh = svd(A_matrix)
-    #print(Vh,"\n",S)
+    U, S, Vh = svd(A_matrix)
+    # print(Vh,"\n",S)
     # 求取光心O指向球心S的向量Vos
-    Vos[B_num,:] = Vh[2,:]
+    Vos[B_num, :] = Vh[2, :]
     '''
     #同SVD方法结果差不多，D为奇异值，V为向量
     D,V = eig(A_matrix.T.dot(A_matrix))
@@ -102,17 +105,18 @@ for B_num in range(Ball_num):
     # 下面几句可以注释掉，没啥用
     # cosBeta1 = np.dot(outline_vec[B_num], Vos[B_num,:])
     # cosBeta1 = np.min(cosBeta1)
-    #print(cosBeta1)
+    # print(cosBeta1)
 
     # 根据公式（4）求取余弦值
-    cosBeta[B_num] = np.dot(outline_vec_mean, Vos[B_num,:])
-    #print(cosBeta[B_num])
-    if cosBeta[B_num] < 0: #cosBeta应该为正值，Beta理论上是小于90度的
-        Vos[B_num,:] = -Vos[B_num,:]
-    sinBeta[B_num] = (1-(cosBeta[B_num])**2)**0.5
-    PointS_world1[B_num,:]= (r/sinBeta[B_num])*Vos[B_num,:]
-    PointS_world[B_num,:] = (r/sinBeta[B_num])*Vos[B_num,:] + camera_world
-#print(cosBeta)
+    cosBeta[B_num] = np.dot(outline_vec_mean, Vos[B_num, :])
+    # print(cosBeta[B_num])
+    if cosBeta[B_num] < 0:  # cosBeta应该为正值，Beta理论上是小于90度的
+        Vos[B_num, :] = -Vos[B_num, :]
+    # 根据公式（7）计算球心S的坐标
+    sinBeta[B_num] = (1 - (cosBeta[B_num]) ** 2) ** 0.5
+    PointS_world1[B_num, :] = (r / sinBeta[B_num]) * Vos[B_num, :]
+    PointS_world[B_num, :] = (r / sinBeta[B_num]) * Vos[B_num, :] + camera_world
+# print(cosBeta)
 print(PointS_world)
 '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
@@ -137,14 +141,14 @@ ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
 '''
-OP_unit = [] #存储单位OP向量，行向量为单位OP向量
+OP_unit = []  # 存储单位OP向量，行向量为单位OP向量
 for L_num in range(Light_num):
-    OP_vec = np.zeros((4,3))
+    OP_vec = np.zeros((4, 3))
     for B_num in range(Ball_num):
-        OP_vec1 = PointP_world3d[L_num][B_num,:] - camera_world
-        OP_vec[B_num,:] = OP_vec1/norm(OP_vec1)
+        OP_vec1 = PointP_world3d[L_num][B_num, :] - camera_world
+        OP_vec[B_num, :] = OP_vec1 / norm(OP_vec1)
     OP_unit.append(OP_vec)
-#print(OP_unit)
+# print(OP_unit)
 '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 for L_num in range(Light_num):
@@ -155,34 +159,38 @@ ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
 '''
-PointP_real = [] #存储
-def quadratic(a,b,c):  
-    p=b*b-4*a*c  
-    if p>=0 and a!=0:#一元二次方程有解的条件  
-        x1=(-b+math.sqrt(p))/(2*a)  
-        x2=(-b-math.sqrt(p))/(2*a)  
-        return x1,x2  
-    elif a==0:#a=0的情况下为一元一次方程  
-        x1=x2=-c/b  
-        return x1  
-    else:  
-        return('Wrong Number！')
+PointP_real = []  # 存储
+
+
+def quadratic(a, b, c):
+    p = b * b - 4 * a * c
+    if p >= 0 and a != 0:  # 一元二次方程有解的条件
+        x1 = (-b + math.sqrt(p)) / (2 * a)
+        x2 = (-b - math.sqrt(p)) / (2 * a)
+        return x1, x2
+    elif a == 0:  # a=0的情况下为一元一次方程
+        x1 = x2 = -c / b
+        return x1
+    else:
+        return ('Wrong Number！')
+
+
 for L_num in range(Light_num):
-    PointP = np.zeros((4,3))
+    PointP = np.zeros((4, 3))
     for B_num in range(Ball_num):
-        cosTheta = np.dot(OP_unit[L_num][B_num,:],Vos[B_num,:].T)
-        #print(cosTheta)
-        
+        cosTheta = np.dot(OP_unit[L_num][B_num, :], Vos[B_num, :].T)
+        # print(cosTheta)
+
         a = 1
-        b = -2*(r/sinBeta[B_num])*cosTheta
-        c = -r**2+(r/sinBeta[B_num])**2
-        #print(quadratic(a,b,c), np.min(quadratic(a,b,c)))
-        OP_module = np.min(quadratic(a,b,c))
-        #OP_module = scipy.optimize.fsolve(lambda x: a*x**2 + b*x + c, 0)
-        #print(OP_module)
-        PointP[B_num,:] = OP_unit[L_num][B_num,:]*OP_module + camera_world
+        b = -2 * (r / sinBeta[B_num]) * cosTheta
+        c = -r ** 2 + (r / sinBeta[B_num]) ** 2
+        # print(quadratic(a,b,c), np.min(quadratic(a,b,c)))
+        OP_module = np.min(quadratic(a, b, c))
+        # OP_module = scipy.optimize.fsolve(lambda x: a*x**2 + b*x + c, 0)
+        # print(OP_module)
+        PointP[B_num, :] = OP_unit[L_num][B_num, :] * OP_module + camera_world
     PointP_real.append(PointP)
-print(PointP_real,"\n",PointS_world)
+print(PointP_real, "\n", PointS_world)
 '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 for L_num in range(Light_num):
@@ -194,67 +202,63 @@ ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
 '''
-#结果还是有问题
-Light_world = np.zeros((Light_num,3)) #光源世界坐标
+# 结果还是有问题
+Light_world = np.zeros((Light_num, 3))  # 光源世界坐标
 for L_num in range(8):
-    A_matrix = np.zeros((2*Ball_num,3))
-    B_matrix = np.zeros(2*Ball_num)
+    A_matrix = np.zeros((2 * Ball_num, 3))
+    B_matrix = np.zeros(2 * Ball_num)
     for B_num in range(Ball_num):
         # 法向SPH向量，高光点处的入射光线和出射光线关于其对称，向量OPH可以由向量LPH绕SPH向量旋转得到
-        SP_vec = PointP_real[L_num][B_num,:] - PointS_world[B_num,:]
-        SP_unit = SP_vec/norm(SP_vec)
+        SP_vec = PointP_real[L_num][B_num, :] - PointS_world[B_num, :]
+        SP_unit = SP_vec / norm(SP_vec)
         # Light_vec = (2*(SP_unit*(-OP_unit[L_num][B_num,:]))
         #             *SP_unit+OP_unit[L_num][B_num,:])
         #  L = 2(N*R)*N-R，不知道为什么这个方法出来的结果有误，是不是向量方向的问题
         R = cv2.Rodrigues(SP_unit)[0]
-        Light_vec = np.dot(R,OP_unit[L_num][B_num,:].T).reshape(3)
-        #print(Light_vec)
-        Light_unit = -Light_vec/norm(Light_vec)
-        #print(Light_unit)
+        Light_vec = np.dot(R, OP_unit[L_num][B_num, :].T).reshape(3)
+        # print(Light_vec)
+        Light_unit = -Light_vec / norm(Light_vec)
+        # print(Light_unit)
         # a1,a2,a3定义见表达式（11）
-        a1,a2,a3 = Light_unit
-        Px, Py, Pz = PointP_real[L_num][B_num,:]
+        a1, a2, a3 = Light_unit
+        Px, Py, Pz = PointP_real[L_num][B_num, :]
         # A1，B1定义见表达式（12）
-        A1 = np.array([[a2,-a1,0],[a3,0,-a1]])
-        B1 = np.array([a2*Px-a1*Py,a3*Px-a1*Pz])
+        A1 = np.array([[a2, -a1, 0], [a3, 0, -a1]])
+        B1 = np.array([a2 * Px - a1 * Py, a3 * Px - a1 * Pz])
         # A_matrix，B_matrix见表达式（14）
-        A_matrix[2*B_num:2*B_num+2,:] = A1
-        B_matrix[2*B_num:2*B_num+2] = B1
-    Light_world[L_num,:] = pinv(A_matrix).dot(B_matrix)
-for L_num in range(8,32):
-    A_matrix = np.zeros((2*Ball_num,3))
-    B_matrix = np.zeros(2*Ball_num)
+        A_matrix[2 * B_num:2 * B_num + 2, :] = A1
+        B_matrix[2 * B_num:2 * B_num + 2] = B1
+    Light_world[L_num, :] = pinv(A_matrix).dot(B_matrix)
+for L_num in range(8, 32):
+    A_matrix = np.zeros((2 * Ball_num, 3))
+    B_matrix = np.zeros(2 * Ball_num)
     for B_num in range(Ball_num):
-        SP_vec = PointP_real[L_num][B_num,:] - PointS_world[B_num,:]
-        SP_unit = SP_vec/norm(SP_vec)
-        #Light_vec = (2*(SP_unit*(-OP_unit[L_num][B_num,:]))
-         #            *SP_unit+OP_unit[L_num][B_num,:])
-         #L = 2(N*R)*N-R，不知道为什么这个方法出来的结果有误，是不是向量方向的问题
+        SP_vec = PointP_real[L_num][B_num, :] - PointS_world[B_num, :]
+        SP_unit = SP_vec / norm(SP_vec)
+        # Light_vec = (2*(SP_unit*(-OP_unit[L_num][B_num,:]))
+        #            *SP_unit+OP_unit[L_num][B_num,:])
+        # L = 2(N*R)*N-R，不知道为什么这个方法出来的结果有误，是不是向量方向的问题
         R = cv2.Rodrigues(SP_unit)[0]
-        Light_vec = np.dot(R,OP_unit[L_num][B_num,:].T).reshape(3)
-        #print(Light_vec)
-        Light_unit = -Light_vec/norm(Light_vec)
-        #print(Light_unit)
+        Light_vec = np.dot(R, OP_unit[L_num][B_num, :].T).reshape(3)
+        # print(Light_vec)
+        Light_unit = -Light_vec / norm(Light_vec)
+        # print(Light_unit)
 
-        a1,a2,a3 = Light_unit
-        Px, Py, Pz = PointP_real[L_num][B_num,:]
-        A1 = np.array([[a2,-a1,0],[a3,0,-a1]])
-        B1 = np.array([a2*Px-a1*Py,a3*Px-a1*Pz])
-        A_matrix[2*B_num:2*B_num+2,:] = A1
-        B_matrix[2*B_num:2*B_num+2] = B1
-    Light_world[L_num,:] = pinv(A_matrix).dot(B_matrix)-np.array([0,0,10])
+        a1, a2, a3 = Light_unit
+        Px, Py, Pz = PointP_real[L_num][B_num, :]
+        A1 = np.array([[a2, -a1, 0], [a3, 0, -a1]])
+        B1 = np.array([a2 * Px - a1 * Py, a3 * Px - a1 * Pz])
+        A_matrix[2 * B_num:2 * B_num + 2, :] = A1
+        B_matrix[2 * B_num:2 * B_num + 2] = B1
+    Light_world[L_num, :] = pinv(A_matrix).dot(B_matrix) - np.array([0, 0, 10])
 print(Light_world)
-np.save("./light_world.npy",Light_world)
+np.save("./light_world.npy", Light_world)
 
-#=======将标定好的空间坐标显示在3D图中
+# =======将标定好的空间坐标显示在3D图中
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
-ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=100, c='r')
-ax.scatter(Light_world[:,0],Light_world[:,1],Light_world[:,2], s=100, c='y')
+ax.scatter(PointS_world[:, 0], PointS_world[:, 1], PointS_world[:, 2], s=100, c='r')
+ax.scatter(Light_world[:, 0], Light_world[:, 1], Light_world[:, 2], s=100, c='y')
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
-
-
-
-    
