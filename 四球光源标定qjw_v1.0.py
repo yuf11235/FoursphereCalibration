@@ -80,6 +80,7 @@ for B_num in range(Ball_num):
     outline_vec.append(outline_vec1)
 
 # 求解OS向量——世界坐标系原点指向标定球球心的单位向量，见公式（1）
+# 求解光心坐标用于后面计算光源位置，主要是计算SP向量
 Vos = np.zeros((Ball_num, 3))  # Vos向量
 cosBeta = np.zeros(Ball_num)
 sinBeta = np.zeros(Ball_num)
@@ -117,11 +118,12 @@ for B_num in range(Ball_num):
     PointS_world1[B_num, :] = (r / sinBeta[B_num]) * Vos[B_num, :]
     PointS_world[B_num, :] = (r / sinBeta[B_num]) * Vos[B_num, :] + camera_world
 # print(cosBeta)
-print(PointS_world)
-'''
+# print(PointS_world)
+# '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=100, c='r')
-ax.scatter(PointS_world1[:,0],PointS_world1[:,1],PointS_world1[:,2], s=100, c='r')
+ax.scatter(PointS_world1[:,0],PointS_world1[:,1],PointS_world1[:,2], s=100, c='b')
+ax.set_title("PointS_world(r) and PointS_world1(b)")
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
@@ -135,12 +137,13 @@ for L_num in range(Ball_num):
 for L_num in range(Light_num):
     ax.scatter(PointP_world2d1[L_num][:,0],PointP_world2d1[L_num][:,1],
                 s=100, c='b')
-#ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=100, c='r')
+ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=200, c='r')
+ax.set_title("outline_world2d1(y) and PointP_world2d1(b) and PointS_world(r)")
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
-'''
+# '''
 OP_unit = []  # 存储单位OP向量，行向量为单位OP向量
 for L_num in range(Light_num):
     OP_vec = np.zeros((4, 3))
@@ -149,16 +152,17 @@ for L_num in range(Light_num):
         OP_vec[B_num, :] = OP_vec1 / norm(OP_vec1)
     OP_unit.append(OP_vec)
 # print(OP_unit)
-'''
+# '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 for L_num in range(Light_num):
     ax.scatter(OP_unit[L_num][:,0],OP_unit[L_num][:,1],
                OP_unit[L_num][:,2], s=100, c='y')
+ax.set_title("OP_unit")
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
-'''
+# '''
 PointP_real = []  # 存储
 
 
@@ -191,17 +195,18 @@ for L_num in range(Light_num):
         PointP[B_num, :] = OP_unit[L_num][B_num, :] * OP_module + camera_world
     PointP_real.append(PointP)
 print(PointP_real, "\n", PointS_world)
-'''
+# '''
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 for L_num in range(Light_num):
     ax.scatter(PointP_real[L_num][:,0],PointP_real[L_num][:,1],
                PointP_real[L_num][:,2], s=100, c='y')
 ax.scatter(PointS_world[:,0],PointS_world[:,1],PointS_world[:,2], s=100, c='r')
+ax.set_title("PointP_real(y) and PointS_world(r)")
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
 plt.show()
-'''
+# '''
 # 结果还是有问题
 Light_world = np.zeros((Light_num, 3))  # 光源世界坐标
 for L_num in range(8):
@@ -258,6 +263,7 @@ np.save("./light_world.npy", Light_world)
 ax = plt.subplot(111, projection='3d')  # 创建一个三维的绘图工程
 ax.scatter(PointS_world[:, 0], PointS_world[:, 1], PointS_world[:, 2], s=100, c='r')
 ax.scatter(Light_world[:, 0], Light_world[:, 1], Light_world[:, 2], s=100, c='y')
+ax.set_title("PointS_world(r) and Light_world(y)")
 ax.set_zlabel('Z')  # 坐标轴
 ax.set_ylabel('Y')
 ax.set_xlabel('X')
